@@ -3,10 +3,13 @@ package driver
 import (
 	"errors"
 	"fmt"
+	"net"
+	"time"
+
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
-	"time"
 	"strings"
 )
 
@@ -297,8 +300,33 @@ func (vm *VirtualMachine) PowerOn() error {
 	return err
 }
 
-func (vm *VirtualMachine) WaitForIP() (string, error) {
-	return vm.vm.WaitForIP(vm.driver.ctx)
+func (vm *VirtualMachine) WaitForIP() (ip string, err error) {
+	collector := property.DefaultCollector(vm.vm.Client())
+	err = property.Wait(vm.driver.ctx, collector, vm.vm.Reference(), []string{"guest.ipAddress"}, func(pc []types.PropertyChange) bool {
+		for _, c := range pc {
+			if c.Name != "guest.ipAddress" {
+				continue
+			}
+			if c.Op != types.PropertyChangeOpAssign {
+				continue
+			}
+			if c.Val == nil {
+				continue
+			}
+			ipCandidate := net.ParseIP(c.Val.(string))
+			if ipCandidate == nil {
+				continue // Ignore invalid IP address
+			}
+			if ipCandidate.IsLinkLocalUnicast() {
+				continue
+			}
+			ip = ipCandidate.String()
+			return true
+		}
+		return false
+	})
+
+	return
 }
 
 func (vm *VirtualMachine) PowerOff() error {
