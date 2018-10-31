@@ -99,13 +99,13 @@ func (d *Driver) CreateVM(config *CreateConfig) (*VirtualMachine, error) {
 		return nil, err
 	}
 
-	var host *object.HostSystem
-	if config.Host != "" {
+	var cluster *object.HostSystem
+	if config.Cluster != "" {
 		h, err := d.FindHost(config.Host)
 		if err != nil {
 			return nil, err
 		}
-		host = h.host
+		cluster = h.host
 	}
 
 	datastore, err := d.FindDatastore(config.Datastore, config.Host)
@@ -141,7 +141,7 @@ func (d *Driver) CreateVM(config *CreateConfig) (*VirtualMachine, error) {
 		VmPathName: fmt.Sprintf("[%s]", datastore.Name()),
 	}
 
-	task, err := folder.folder.CreateVM(d.ctx, createSpec, resourcePool.pool, host)
+	task, err := folder.folder.CreateVM(d.ctx, createSpec, resourcePool.pool, cluster)
 	if err != nil {
 		return nil, err
 	}
